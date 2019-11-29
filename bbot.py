@@ -4,6 +4,7 @@ import logging
 import ssl as ssl_lib
 import certifi
 import random
+from nlp_model import NLPModel
 
 punctuation_marks = [".", ",", "!", "?"]
 
@@ -17,52 +18,26 @@ def drop_punctuation(text):
 class BokshNet(object):
 
     def __init__(self, dataset_path="boksh.txt"):
-        self.dataset = []
+        self.model = NLPModel()
+        dataset = []
         with open(dataset_path, 'r') as f:
             for line in f:
-                src_line = line[:]
                 if line:
-                    line = line.rstrip().lower()
-                    self.dataset.append({'text': src_line, 'bow': self.get_bow(line)})
+                    line = line.rstrip()
+                    dataset.append(line)
 
-    @staticmethod
-    def get_bow(text):
-        text = drop_punctuation(text)
-        bow = dict()
-        for word in text.split():
-            if word not in bow:
-                bow[word] = 0
-            bow[word] += 1
-        return bow
+        self.model.fit(dataset)
 
     def predict(self, query):
         query = drop_punctuation(query)
         if query == "":
             return "Мне нечего тут добавить :boksh:"
-        rank = []
-        for data in self.dataset:
-            cur_rank = 0
-            for w in query.lower().split(" "):
-                if w in data["bow"].keys():
-                    cur_rank += data["bow"][w]
-            rank.append(cur_rank)
-        ids = [x for x in range(len(self.dataset))]
-        id_rank = zip(ids, rank)
-        sorted_id_rank = sorted(id_rank, key=lambda x: x[1], reverse=True)
-        sorted_id_rank = list(zip(*sorted_id_rank))
-        sorted_ids, sorted_ranks = sorted_id_rank
-        top = []
-        top.append(sorted_ids[0])
-        next = 1
-        while sorted_ranks[next] == sorted_ranks[0]:
-            top.append(sorted_ids[next])
-            if next == len(sorted_ids) - 1:
-                break
-            else:
-                next += 1
 
-        out_id = top[random.randrange(len(top))]
-        return self.dataset[out_id]["text"]
+        score, texts = self.model.predict(query)
+        if score == 0:
+            return "Мне нечего тут добавить :boksh:"
+        else:
+            return texts[random.randint(0, len(texts))]
 
 
 class FreqModerator:
@@ -133,5 +108,39 @@ def main():
     pass
 
 
+TEXT = '''
+Отличие в том, что стеммер (конкретная реализация алгоритма стемминга – прим.переводчика) действует без знания 
+контекста и, соответственно, не понимает разницу между словами, которые имеют разный смысл в зависимости от части речи. 
+Однако у стеммеров есть и свои преимущества: их проще внедрить и они работают быстрее. 
+Плюс, более низкая «аккуратность» может не иметь значения в некоторых случаях.
+'''
+
+
+def test():
+    # text = open('./anna.txt', 'r', encoding='utf-8').read().lower()
+    # text = TEXT.lower()
+    # model = NLPModel()
+    # words = model.word_tokenize(text, preserve_line=False)
+    # clean_words = model.remove_stopwords(words)
+    # print(clean_words)
+    # print()
+    # stem_words = model.stem_words(clean_words)
+    # print(stem_words)
+    # print()
+    # bow = model.create_bow(stem_words)
+    # print(bow)
+    # dataset = []
+    # with open("boksh.txt", 'r') as f:
+    #     for line in f:
+    #         if line:
+    #             line = line.rstrip()
+    #             dataset.append(line)
+    #
+    # model.fit(dataset)
+    # score, text = model.predict("зарплата")
+    print(boksh_net.predict("утка"))
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    test()
