@@ -15,34 +15,31 @@ class NLPModel(object):
                                ':', ';', '\'', '\"', '+', '=', '№', '?', '<', '>', '«', '»'])
         self.stopwords = set(self.stopwords)
         self.stemmer = SnowballStemmer(language=language)
-        self.vocab = []
+        self.vocab = set()
         self.bows = []
+        self.texts = []
 
     def fit(self, texts):
-        for text in texts:
-            self.vocab.extend(self.get_words(text))
-        self.vocab = set(self.vocab)
-        self.bows = [(text, self.get_bow(self.get_words(text))) for text in texts]
+        self.vocab = set()
+        self.bows = []
+        self.texts = texts
+        for text in self.texts:
+            self.vocab.update(self.get_words(text))
+        self.bows = [self.get_bow(self.get_words(text)) for text in texts]
 
     def predict(self, text):
-        words = self.get_words(text)
-        bow = self.get_bow(words)
-        table = []
-        for self_text_bow in self.bows:
-            text, self_bow = self_text_bow
-            table.append((text, (np.array(list(bow.values())) * np.array(list(self_bow.values()))).sum()))
+        text_words = self.get_words(text)
+        text_bow = self.get_bow(text_words)
+        scores = [(np.array(bow) * np.array(text_bow)).sum() for bow in self.bows]
 
-        max_score = 0
-        max_text = []
-        for text_score in table:
-            text, score = text_score
-            if score > max_score:
-                max_score = score
-                max_text = [text]
-            elif score == max_score:
-                max_text.append(text)
+        max_score = max(scores)
+        if max_score == 0:
+            return 0, []
 
-        return max_score, max_text
+        max_score_index = [i for i, score in enumerate(scores) if score == max_score]
+        max_score_text = [self.texts[i] for i in max_score_index]
+
+        return max_score, max_score_text
 
     def sent_tokenize(self, text):
         return st(text, self.language)
@@ -57,11 +54,14 @@ class NLPModel(object):
         return [self.stemmer.stem(word) for word in words]
 
     def get_words(self, text):
-        return self.stem_words(self.remove_stopwords(self.word_tokenize(text, preserve_line=False)))
+        words = self.word_tokenize(text, preserve_line=False)
+        clear_words = self.remove_stopwords(words)
+        norm_words = self.stem_words(clear_words)
+        return norm_words
 
     def get_bow(self, words):
         bow = {key: 0 for key in self.vocab}
         for word in words:
             if word in bow:
                 bow[word] += 1
-        return bow
+        return list(bow.values())
