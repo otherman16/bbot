@@ -4,81 +4,52 @@ import logging
 import ssl as ssl_lib
 import certifi
 import random
-
-punctuation_marks = [".", ",", "!", "?"]
-
-
-def drop_punctuation(text):
-    for p in punctuation_marks:
-        text = text.replace(p, "")
-    return text
+from nlp_model import NLPModel
 
 
-class BokshNet(object):
+class BokshBot(object):
 
     def __init__(self, dataset_path="boksh.txt"):
-        self.dataset = []
+        self.model = NLPModel()
+        dataset = []
         with open(dataset_path, 'r') as f:
             for line in f:
-                src_line = line[:]
                 if line:
-                    line = line.rstrip().lower()
-                    self.dataset.append({'text': src_line, 'bow': self.get_bow(line)})
+                    line = line.rstrip()
+                    dataset.append(line)
 
-    @staticmethod
-    def get_bow(text):
-        text = drop_punctuation(text)
-        bow = dict()
-        for word in text.split():
-            if word not in bow:
-                bow[word] = 0
-            bow[word] += 1
-        return bow
+        self.model.fit(dataset)
 
-    def predict(self, query):
-        query = drop_punctuation(query)
+    def answer(self, query):
         if query == "":
             return "Мне нечего тут добавить :boksh:"
-        rank = []
-        for data in self.dataset:
-            cur_rank = 0
-            for w in query.lower().split(" "):
-                if w in data["bow"].keys():
-                    cur_rank += data["bow"][w]
-            rank.append(cur_rank)
-        ids = [x for x in range(len(self.dataset))]
-        id_rank = zip(ids, rank)
-        sorted_id_rank = sorted(id_rank, key=lambda x: x[1], reverse=True)
-        sorted_id_rank = list(zip(*sorted_id_rank))
-        sorted_ids, sorted_ranks = sorted_id_rank
-        top = []
-        top.append(sorted_ids[0])
-        next = 1
-        while sorted_ranks[next] == sorted_ranks[0]:
-            top.append(sorted_ids[next])
-            if next == len(sorted_ids) - 1:
-                break
-            else:
-                next += 1
 
-        out_id = top[random.randrange(len(top))]
-        return self.dataset[out_id]["text"]
+        score, texts = self.model.predict(query)
+        if score == 0:
+            return "Мне нечего тут добавить :boksh:"
+        else:
+            return texts[random.randrange(len(texts))]
 
 
 class FreqModerator:
 
     def __init__(self):
-        self.freq = 3
+        self.__freq = 3
 
     def ready2answer(self):
-        return random.randrange(self.freq) == self.freq - 1
+        return random.randrange(self.__freq) == self.__freq - 1
 
-    def set_freq(self, f):
-        self.freq = f
-        pass
+    @property
+    def freq(self):
+        return self.__freq
+
+    @freq.setter
+    def freq(self, v):
+        if v > 0:
+            self.__freq = v
 
 
-boksh_net = BokshNet("boksh.txt")
+bbot = BokshBot("boksh.txt")
 fmod = FreqModerator()
 
 
@@ -101,25 +72,29 @@ def message(**payload):
         if user_id != "USLACKBOT":
             if "bokshbot" in text.lower():
                 if "freq" in text.lower():
-                    _freq = None
+                    last_word = text.split()[-1]
                     try:
-                        last_word = text.split()[-1]
                         _freq = int(last_word)
-                    except Exception as e:
-                        e.args += (last_word)
-                    fmod.set_freq(_freq)
-                    # if _freq is not None:
-                        # response_freq = _freq
-                web_client.chat_postMessage(
-                    channel=channel_id,
-                    text=boksh_net.predict(text)
-                )
+                        fmod.freq = _freq
+                        web_client.chat_postMessage(
+                            channel=channel_id,
+                            text=":boksh::+1:"
+                        )
+                    except ValueError:
+                        web_client.chat_postMessage(
+                            channel=channel_id,
+                            text=":boksh::-1:"
+                        )
+                else:
+                    web_client.chat_postMessage(
+                        channel=channel_id,
+                        text=bbot.answer(text)
+                    )
             elif fmod.ready2answer():
                 web_client.chat_postMessage(
                     channel=channel_id,
-                    text=boksh_net.predict(text)
+                    text=bbot.answer(text)
                 )
-    pass
 
 
 def main():
@@ -130,7 +105,6 @@ def main():
     slack_token = os.environ["SLACK_BOT_TOKEN"]
     rtm_client = slack.RTMClient(token=slack_token, ssl=ssl_context)
     rtm_client.start()
-    pass
 
 
 if __name__ == "__main__":
