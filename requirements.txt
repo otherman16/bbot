@@ -1,2 +1,6 @@
 slackclient
 certifi
+nltk
+sklearn
+numpy
+pandas
