@@ -63,10 +63,11 @@ def message(**payload):
     """
     data = payload["data"]
     web_client = payload["web_client"]
-    channel_id = data.get("channel")
-    user_id = data.get("user")
-    text = data.get("text")
-    thread_ts = data.get("ts")
+    rtm_client = payload["rtm_client"]
+    channel_id = data["channel"]
+    user_id = data.get("user", None)
+    text = data.get("text", '')
+    thread_ts = data["ts"]
 
     if user_id is not None:
         if user_id != "USLACKBOT":
