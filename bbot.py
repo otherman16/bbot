@@ -4,13 +4,14 @@ import logging
 import ssl as ssl_lib
 import certifi
 import random
-from nlp_model import NLPModel
+from nlp_model import NLPModel, SiteModel
 
 
 class BokshBot(object):
 
     def __init__(self, dataset_path="boksh.txt"):
         self.model = NLPModel()
+        self.site = SiteModel()
         dataset = []
         with open(dataset_path, 'r') as f:
             for line in f:
@@ -26,7 +27,8 @@ class BokshBot(object):
 
         score, texts = self.model.predict(query)
         if score == 0:
-            return "Мне нечего тут добавить :boksh:"
+            return [f"Я знаю сайт {self.site(query)}! Поищите там! :boksh:",
+                    "Мне нечего тут добавить :boksh:"][random.randrange(2)]
         else:
             return texts[random.randrange(len(texts))]
 
@@ -104,6 +106,8 @@ def main():
     logger.addHandler(logging.StreamHandler())
     ssl_context = ssl_lib.create_default_context(cafile=certifi.where())
     slack_token = os.environ["SLACK_BOT_TOKEN"]
+    freq = os.environ["SLACK_BOT_FREQ"]
+    fmod.freq = int(freq)
     rtm_client = slack.RTMClient(token=slack_token, ssl=ssl_context)
     rtm_client.start()
 
