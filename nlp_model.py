@@ -5,6 +5,43 @@ from nltk.stem import SnowballStemmer
 import numpy as np
 
 
+class SiteModel(object):
+
+    def __init__(self, language='russian'):
+        self.language = language
+        self.stopwords = stopwords.words(language)
+        self.stopwords.extend(['что', 'это', 'так', 'вот', 'быть', 'как', 'в', '_', '–', 'к', 'на', '...', '(', ')',
+                               '[', ']', '{', '}', ',', '.', '!', '@', '#', '$', '%', '^', '&', '*', '~', '\\', '|',
+                               ':', ';', '\'', '\"', '+', '=', '№', '?', '<', '>', '«', '»'])
+        self.stopwords = set(self.stopwords)
+        self.stemmer = SnowballStemmer(language=language)
+        self.fmt = "{}.ру"
+
+    def __call__(self, text):
+        text_words = self.get_words(text)
+        longest_word = max(text_words, key=len)
+        return self.fmt.format(longest_word)
+
+    def sent_tokenize(self, text):
+        return st(text, self.language)
+
+    def word_tokenize(self, text, preserve_line=False):
+        return wt(text, self.language, preserve_line)
+
+    def remove_stopwords(self, words):
+        return [word for word in words if word not in self.stopwords]
+
+    def stem_words(self, words):
+        return [self.stemmer.stem(word) for word in words]
+
+    def get_words(self, text):
+        words = self.word_tokenize(text, preserve_line=False)
+        clear_words = self.remove_stopwords(words)
+        norm_words = self.stem_words(clear_words)
+        return norm_words
+
+
+
 class NLPModel(object):
 
     def __init__(self, language='russian'):
